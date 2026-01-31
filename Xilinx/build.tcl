@@ -20,20 +20,13 @@ if {[get_property PROGRESS [get_runs synth_1]] != "100%"} {
 }
 puts "Synthesis completed successfully!"
 
-# Open synthesized design and insert ILA
-puts "Inserting ILA debug core..."
-open_run synth_1
-source "$project_dir/insert_ila.tcl"
-
 # Create directory for checkpoints and reports
 file mkdir "$project_dir/reports"
 
 # Run Implementation from checkpoint (opt_design, place_design, route_design)
 puts "Starting Implementation..."
+open_run synth_1
 opt_design
-
-# Write debug probes file for hardware manager (must be after opt_design)
-write_debug_probes -force "$project_dir/reports/debug_probes.ltx"
 place_design
 route_design
 

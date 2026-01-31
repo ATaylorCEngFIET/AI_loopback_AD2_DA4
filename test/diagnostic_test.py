@@ -8,6 +8,9 @@ Hardware Connections:
 - AD3 W1 (yellow) -> PmodAD2 A0 input
 - AD3 1+ (orange) -> PmodDA4 VOUTA output  
 - AD3 GND (black) -> Common GND
+"""
+
+import sys
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -226,12 +229,14 @@ def main():
             return
         
         # Run test at different frequencies
-        for freq in [50, 100, 500]:
+        # ADC sample rate is ~3.5 kHz (I2C limited), so use low frequencies
+        # to get smooth waveforms (need 20+ samples/cycle)
+        for freq in [5, 10, 20]:
             t, ideal_input, ch1, f = tester.generate_and_capture(
                 frequency=freq,
                 amplitude=1.0,
                 offset=1.25,
-                sample_rate=max(freq * 200, 50000),
+                sample_rate=max(freq * 200, 10000),
                 num_samples=8192
             )
             

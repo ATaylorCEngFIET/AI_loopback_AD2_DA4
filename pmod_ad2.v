@@ -80,6 +80,7 @@ module pmod_ad2 (
     localparam WAIT_NEXT  = 6'd51;
 
     // Clock divider - 100kHz I2C
+    // 50MHz / (4 phases * 125) = 100 kHz
     parameter CLK_DIV = 125;
     reg [7:0] clk_cnt;
     reg [1:0] phase;
