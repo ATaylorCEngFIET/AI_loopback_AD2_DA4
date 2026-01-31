@@ -1,0 +1,13 @@
+
+Create me a Verilog design which does the following 
+
+1. Interfaces a Digilient Pmod AD2 which has a I2C inteface, this is four channel ADC but the design should only use the first channel - https://www.analog.com/media/en/technical-documentation/data-sheets/ad7991_7995_7999.pdf
+2. Interfaces a digilent Pmod DA4 which is a SPI interace, this is a eight channel DAC but the design should only use the lowest channel -https://www.analog.com/media/en/technical-documentation/data-sheets/AD5628_5648_5668.pdf
+3. Map the 12 bits from the ADC to the 14 bit output of the DAC - Map to highest bits
+4. Create seperate files the PmodAD2 will be in its own module - outputing a AXI stream 
+5. Create seperate files the PmodDA4 will be in its own module - inputputing a AXI Stream 
+6. The clock will be 50 MHz - ADC and DAC will be accessed at 1 MHz e.g. SCL is 1MHz and SCk is 1 MHz
+7. Data will be passed through from inptu to output directly 
+8. Create a test bench to verify the i2C and SPI ADC and DAC interfaces and pass through 
+9. Test Bench should be self checking 
+10. use Questa sim which is on the path. 

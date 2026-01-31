@@ -1,0 +1,44 @@
+# Vivado generated files
+*.jou
+*.log
+*.backup.jou
+*.backup.log
+*.str
+*.wdb
+.Xil/
+
+# Simulation files
+*.vcd
+*.wlf
+transcript
+vsim.wlf
+
+# Work directories
+work/
+Xilinx/work/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.cache/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.hw/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.ip_user_files/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.runs/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.sim/
+Xilinx/adc_dac_passthrough/adc_dac_passthrough.srcs/
+
+# Keep project file but not generated outputs
+!Xilinx/adc_dac_passthrough/adc_dac_passthrough.xpr
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.egg-info/
+
+# Test outputs
+test/*.png
+
+# VS Code
+.vscode/
+
+# Backup files
+*_backup.v
+*_readonly.v
