@@ -170,9 +170,101 @@ class AD3Tester:
         dwf.FDwfAnalogOutConfigure(self.hdwf, c_int(0), c_int(0))
         
         return t, ideal_input, ch1, frequency
-    
 
-def plot_diagnostic(t, ideal_input, ch1, freq, save_path="diagnostic_plot.png"):
+    def generate_ramp_and_capture(self, frequency=5, amplitude=1.0, offset=1.25,
+                                   sample_rate=10000, num_samples=8192):
+        """
+        Generate triangle/ramp waveform on W1 and capture on scope
+        """
+        print(f"\n{'='*60}")
+        print(f"Test: {frequency} Hz Triangle/Ramp Wave")
+        print(f"  W1 Output: {offset-amplitude:.2f}V to {offset+amplitude:.2f}V")
+        print(f"  Sample Rate: {sample_rate/1000:.1f} kHz")
+        print(f"  Samples: {num_samples}")
+        print(f"{'='*60}")
+        
+        # Configure W1 waveform generator - Triangle wave
+        print("\nConfiguring Waveform Generator W1 (Triangle)...")
+        dwf.FDwfAnalogOutNodeEnableSet(self.hdwf, c_int(0), c_int(0), c_int(1))
+        dwf.FDwfAnalogOutNodeFunctionSet(self.hdwf, c_int(0), c_int(0), funcTriangle)
+        dwf.FDwfAnalogOutNodeFrequencySet(self.hdwf, c_int(0), c_int(0), c_double(frequency))
+        dwf.FDwfAnalogOutNodeAmplitudeSet(self.hdwf, c_int(0), c_int(0), c_double(amplitude))
+        dwf.FDwfAnalogOutNodeOffsetSet(self.hdwf, c_int(0), c_int(0), c_double(offset))
+        
+        # Start wavegen
+        dwf.FDwfAnalogOutConfigure(self.hdwf, c_int(0), c_int(1))
+        print("W1 Started.")
+        
+        # Wait for output to stabilize
+        time.sleep(0.5)
+        
+        # Configure oscilloscope - Ch1 only
+        print("\nConfiguring Oscilloscope...")
+        dwf.FDwfAnalogInChannelEnableSet(self.hdwf, c_int(0), c_int(1))
+        dwf.FDwfAnalogInChannelRangeSet(self.hdwf, c_int(0), c_double(5.0))
+        dwf.FDwfAnalogInChannelOffsetSet(self.hdwf, c_int(0), c_double(0.0))
+        
+        # Acquisition settings
+        dwf.FDwfAnalogInFrequencySet(self.hdwf, c_double(sample_rate))
+        dwf.FDwfAnalogInBufferSizeSet(self.hdwf, c_int(num_samples))
+        
+        # Trigger - auto
+        dwf.FDwfAnalogInTriggerSourceSet(self.hdwf, trigsrcNone)
+        dwf.FDwfAnalogInTriggerAutoTimeoutSet(self.hdwf, c_double(2.0))
+        
+        # Start acquisition
+        dwf.FDwfAnalogInConfigure(self.hdwf, c_int(1), c_int(1))
+        print("Scope acquisition started...")
+        
+        # Wait for completion
+        sts = c_int()
+        timeout = time.time() + 5
+        while time.time() < timeout:
+            dwf.FDwfAnalogInStatus(self.hdwf, c_int(1), byref(sts))
+            if sts.value == DwfStateDone.value:
+                break
+            time.sleep(0.01)
+        
+        if sts.value != DwfStateDone.value:
+            print("WARNING: Capture timeout!")
+        
+        # Read data from Ch1
+        ch1_data = (c_double * num_samples)()
+        dwf.FDwfAnalogInStatusData(self.hdwf, c_int(0), ch1_data, c_int(num_samples))
+        
+        ch1 = np.array(list(ch1_data))
+        t = np.linspace(0, num_samples / sample_rate, num_samples)
+        
+        # Generate ideal triangle waveform
+        # Triangle wave: use scipy or manual calculation
+        period = 1.0 / frequency
+        phase = (t % period) / period  # 0 to 1 within each period
+        ideal_input = offset + amplitude * (2 * np.abs(2 * phase - 1) - 1)
+        
+        # Calculate statistics
+        print("\n--- Signal Statistics ---")
+        print(f"Ch1 (DAC Output):  Min={ch1.min():.3f}V  Max={ch1.max():.3f}V  Mean={ch1.mean():.3f}V")
+        print(f"Expected Input:    Min={offset-amplitude:.3f}V  Max={offset+amplitude:.3f}V  Mean={offset:.3f}V")
+        
+        expected_pp = 2 * amplitude
+        
+        # Check DAC output
+        ch1_pp = ch1.max() - ch1.min()
+        if ch1_pp > 0.1:
+            gain = ch1_pp / expected_pp
+            print(f"\n✓ Ch1 (DAC) shows signal: {ch1_pp:.3f}Vpp")
+            print(f"  -> Passthrough gain: {gain:.3f} ({20*np.log10(gain):.1f} dB)")
+        else:
+            print(f"\n✗ Ch1 shows weak/no signal: {ch1_pp:.3f}Vpp")
+            print("  -> Check DAC output wiring to Scope 1+")
+        
+        # Stop wavegen
+        dwf.FDwfAnalogOutConfigure(self.hdwf, c_int(0), c_int(0))
+        
+        return t, ideal_input, ch1, frequency
+
+
+def plot_diagnostic(t, ideal_input, ch1, freq, save_path="diagnostic_plot.png", wave_type="Sine"):
     """Create diagnostic plot"""
     fig, axes = plt.subplots(3, 1, figsize=(14, 10))
     
@@ -183,7 +275,7 @@ def plot_diagnostic(t, ideal_input, ch1, freq, save_path="diagnostic_plot.png"):
     # Ideal input
     axes[0].plot(t_ms, ideal_input[:n_show], 'b-', linewidth=1.5)
     axes[0].set_ylabel('Voltage (V)')
-    axes[0].set_title(f'Ideal Input Signal (W1: {freq} Hz Sine Wave)')
+    axes[0].set_title(f'Ideal Input Signal (W1: {freq} Hz {wave_type} Wave)')
     axes[0].grid(True, alpha=0.3)
     axes[0].set_ylim(-0.5, 3.0)
     axes[0].axhline(y=0, color='k', linewidth=0.5)
@@ -207,7 +299,7 @@ def plot_diagnostic(t, ideal_input, ch1, freq, save_path="diagnostic_plot.png"):
     axes[2].legend(loc='upper right')
     axes[2].axhline(y=0, color='k', linewidth=0.5)
     
-    plt.suptitle(f'ADC-DAC Passthrough Diagnostic - {freq} Hz', fontsize=14, fontweight='bold')
+    plt.suptitle(f'ADC-DAC Passthrough Diagnostic - {freq} Hz {wave_type}', fontsize=14, fontweight='bold')
     plt.tight_layout()
     
     plt.savefig(save_path, dpi=150, bbox_inches='tight')
@@ -232,9 +324,12 @@ def main():
         if not tester.connect():
             return
         
-        # Run test at different frequencies
+        # Run sine wave tests at different frequencies
         # ADC sample rate is ~3.5 kHz (I2C limited), so use low frequencies
         # to get smooth waveforms (need 20+ samples/cycle)
+        print("\n" + "=" * 60)
+        print("SINE WAVE TESTS")
+        print("=" * 60)
         for freq in [5, 10, 20]:
             t, ideal_input, ch1, f = tester.generate_and_capture(
                 frequency=freq,
@@ -245,12 +340,32 @@ def main():
             )
             
             plot_diagnostic(t, ideal_input, ch1, f, 
-                          save_path=os.path.join(SCRIPT_DIR, f"diagnostic_{freq}hz.png"))
+                          save_path=os.path.join(SCRIPT_DIR, f"diagnostic_sine_{freq}hz.png"),
+                          wave_type="Sine")
+            
+            input("\nPress Enter to continue to next test...")
+        
+        # Run triangle/ramp wave tests
+        print("\n" + "=" * 60)
+        print("TRIANGLE/RAMP WAVE TESTS")
+        print("=" * 60)
+        for freq in [5, 10, 20]:
+            t, ideal_input, ch1, f = tester.generate_ramp_and_capture(
+                frequency=freq,
+                amplitude=1.0,
+                offset=1.25,
+                sample_rate=max(freq * 200, 10000),
+                num_samples=8192
+            )
+            
+            plot_diagnostic(t, ideal_input, ch1, f, 
+                          save_path=os.path.join(SCRIPT_DIR, f"diagnostic_ramp_{freq}hz.png"),
+                          wave_type="Triangle")
             
             input("\nPress Enter to continue to next test...")
             
         print("\n" + "=" * 60)
-        print("Diagnostic tests completed!")
+        print("All diagnostic tests completed!")
         print("=" * 60)
         
     except Exception as e:
