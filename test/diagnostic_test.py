@@ -11,10 +11,14 @@ Hardware Connections:
 """
 
 import sys
+import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
 from ctypes import *
+
+# Get the directory where this script is located
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Try to import DWF library
 try:
@@ -241,7 +245,7 @@ def main():
             )
             
             plot_diagnostic(t, ideal_input, ch1, f, 
-                          save_path=f"diagnostic_{freq}hz.png")
+                          save_path=os.path.join(SCRIPT_DIR, f"diagnostic_{freq}hz.png"))
             
             input("\nPress Enter to continue to next test...")
             
