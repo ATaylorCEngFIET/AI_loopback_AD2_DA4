@@ -73,7 +73,7 @@ module tb_adc_dac_passthrough;
     end
     
     //=========================================================================
-    // I2C Slave Model - simulates AD7991 with address 0x29
+    // I2C Slave Model - simulates AD7991 with address 0x28
     //=========================================================================
     
     // State machine states
@@ -129,7 +129,8 @@ module tb_adc_dac_passthrough;
         end else begin
             
             // START condition - reset to address phase
-            if (i2c_start) begin
+            // Only respond to START when idle or in states expecting a repeated START
+            if (i2c_start && (i2c_state == I2C_IDLE || i2c_state == I2C_GET_CONFIG || i2c_state == I2C_ACK_CONFIG)) begin
                 $display("[%0t] I2C: START detected", $time);
                 i2c_state <= I2C_GET_ADDR;
                 i2c_bit_cnt <= 0;
@@ -137,7 +138,8 @@ module tb_adc_dac_passthrough;
             end
             
             // STOP condition - return to idle
-            else if (i2c_stop) begin
+            // Only respond to STOP when NOT actively driving SDA (avoid false detection)
+            else if (i2c_stop && !sda_slave_oe) begin
                 $display("[%0t] I2C: STOP detected", $time);
                 i2c_state <= I2C_IDLE;
                 sda_slave_oe <= 1'b0;
@@ -155,7 +157,8 @@ module tb_adc_dac_passthrough;
                                      {i2c_shift_reg[6:0], sda} >> 1,
                                      sda);
                             // Prepare ACK immediately - drive low before master samples
-                            if ({i2c_shift_reg[6:0], sda} == 8'h52 || {i2c_shift_reg[6:0], sda} == 8'h53) begin
+                            // AD7991 at 7-bit address 0x28: write=0x50, read=0x51
+                            if ({i2c_shift_reg[6:0], sda} == 8'h50 || {i2c_shift_reg[6:0], sda} == 8'h51) begin
                                 sda_slave_oe <= 1'b1;
                                 sda_slave_out <= 1'b0;  // ACK
                             end
@@ -235,12 +238,13 @@ module tb_adc_dac_passthrough;
                         // Only process after the ACK clock has been seen (not on data bit 7 fall)
                         if (ack_clock_seen) begin
                             // After ACK clock, determine next state
-                            if (i2c_addr_received == 8'h52) begin
+                            // AD7991 at 7-bit address 0x28: write=0x50, read=0x51
+                            if (i2c_addr_received == 8'h50) begin
                                 // Write address - release SDA, expect config byte
                                 $display("[%0t] I2C: ACK sent for write address, waiting for config", $time);
                                 sda_slave_oe <= 1'b0;
                                 i2c_state <= I2C_GET_CONFIG;
-                            end else if (i2c_addr_received == 8'h53) begin
+                            end else if (i2c_addr_received == 8'h51) begin
                                 // Read address - start sending data
                                 $display("[%0t] I2C: ACK sent for read address, sending data", $time);
                                 i2c_state <= I2C_SEND_BYTE1;
