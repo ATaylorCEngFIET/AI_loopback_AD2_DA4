@@ -31,12 +31,21 @@ module adc_dac_passthrough (
     wire sda_oe_debug;
     wire [7:0] shift_debug;
     
+    // SDA separate signals for tristate control
+    wire sda_o;   // Output value (always 0 for open-drain)
+    wire sda_oe;  // Output enable (active high = drive low)
+    
+    // SDA tristate at top level: drive low when enabled, else high-Z
+    assign sda = sda_oe ? sda_o : 1'bz;
+    
     // Instantiate ADC module
     pmod_ad2 u_adc (
         .clk(clk),
         .rst_n(rst_n),
         .scl(scl),
-        .sda(sda),
+        .sda_i(sda),
+        .sda_o(sda_o),
+        .sda_oe(sda_oe),
         .m_axis_tdata(adc_data),
         .m_axis_tvalid(adc_valid),
         .m_axis_tready(adc_ready),

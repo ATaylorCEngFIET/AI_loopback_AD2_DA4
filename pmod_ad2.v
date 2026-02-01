@@ -5,7 +5,9 @@ module pmod_ad2 (
     input wire clk,
     input wire rst_n,
     output wire scl,
-    inout wire sda,
+    input wire sda_i,         // SDA input (directly from pin)
+    output wire sda_o,        // SDA output value
+    output wire sda_oe,       // SDA output enable (active high = drive low)
     output reg [11:0] m_axis_tdata,
     output reg m_axis_tvalid,
     input wire m_axis_tready,
@@ -107,9 +109,10 @@ module pmod_ad2 (
     reg scl_reg;
     assign scl = scl_reg;
     
-    // SDA open-drain
+    // SDA open-drain emulation via separate signals
     reg sda_out;
-    assign sda = (sda_out == 1'b0) ? 1'b0 : 1'bz;
+    assign sda_o = 1'b0;                    // Always drive low when enabled
+    assign sda_oe = (sda_out == 1'b0);      // Enable output when driving low
     
     // Read shift register
     reg [15:0] read_shift;
@@ -123,8 +126,8 @@ module pmod_ad2 (
     
     // Debug outputs
     assign state_out = state[3:0];
-    assign sda_debug = sda;
-    assign sda_oe_debug = (sda_out == 1'b0);
+    assign sda_debug = sda_i;
+    assign sda_oe_debug = sda_oe;
     assign shift_debug = read_shift[15:8];
 
     always @(posedge clk or negedge rst_n) begin
@@ -234,25 +237,25 @@ module pmod_ad2 (
                 RA_ACK:  begin sda_out <= 1'b1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:scl_reg<=1; 3:begin scl_reg<=0; sda_out<=1; if(phase_tick)state<=RD1_BIT7; end endcase end
                 
                 // ========== Read Byte 1 (master releases SDA, samples slave) ==========
-                RD1_BIT7: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[15]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT6; end endcase end
-                RD1_BIT6: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[14]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT5; end endcase end
-                RD1_BIT5: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[13]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT4; end endcase end
-                RD1_BIT4: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[12]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT3; end endcase end
-                RD1_BIT3: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[11]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT2; end endcase end
-                RD1_BIT2: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[10]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT1; end endcase end
-                RD1_BIT1: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[9]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT0; end endcase end
-                RD1_BIT0: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[8]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_ACK; end endcase end
+                RD1_BIT7: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[15]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT6; end endcase end
+                RD1_BIT6: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[14]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT5; end endcase end
+                RD1_BIT5: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[13]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT4; end endcase end
+                RD1_BIT4: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[12]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT3; end endcase end
+                RD1_BIT3: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[11]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT2; end endcase end
+                RD1_BIT2: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[10]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT1; end endcase end
+                RD1_BIT1: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[9]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_BIT0; end endcase end
+                RD1_BIT0: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[8]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD1_ACK; end endcase end
                 RD1_ACK: begin sda_out<=0; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:scl_reg<=1; 3:begin scl_reg<=0; sda_out<=1; if(phase_tick)state<=RD2_BIT7; end endcase end
                 
                 // ========== Read Byte 2 ==========
-                RD2_BIT7: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[7]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT6; end endcase end
-                RD2_BIT6: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[6]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT5; end endcase end
-                RD2_BIT5: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[5]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT4; end endcase end
-                RD2_BIT4: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[4]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT3; end endcase end
-                RD2_BIT3: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[3]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT2; end endcase end
-                RD2_BIT2: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[2]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT1; end endcase end
-                RD2_BIT1: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[1]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT0; end endcase end
-                RD2_BIT0: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[0]<=sda; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_NACK; end endcase end
+                RD2_BIT7: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[7]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT6; end endcase end
+                RD2_BIT6: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[6]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT5; end endcase end
+                RD2_BIT5: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[5]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT4; end endcase end
+                RD2_BIT4: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[4]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT3; end endcase end
+                RD2_BIT3: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[3]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT2; end endcase end
+                RD2_BIT2: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[2]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT1; end endcase end
+                RD2_BIT1: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[1]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_BIT0; end endcase end
+                RD2_BIT0: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:begin scl_reg<=1; read_shift[0]<=sda_i; end 3:begin scl_reg<=0; if(phase_tick)state<=RD2_NACK; end endcase end
                 RD2_NACK: begin sda_out<=1; case(phase) 0:scl_reg<=0; 1:scl_reg<=1; 2:scl_reg<=1; 3:begin scl_reg<=0; sda_out<=0; if(phase_tick)state<=STOP1; end endcase end
                 
                 // ========== STOP: SDA goes high while SCL high ==========

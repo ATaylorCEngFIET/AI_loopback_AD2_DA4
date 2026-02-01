@@ -137,12 +137,21 @@ module arty_s7_top (
     assign shift_debug_ila = shift_debug;
     assign sda_oe_debug_ila = sda_oe_debug;
     
+    // SDA separate signals for tristate control
+    wire sda_o;   // Output value (always 0 for open-drain)
+    wire sda_oe;  // Output enable (active high = drive low)
+    
+    // SDA tristate at top level: drive low when enabled, else high-Z
+    assign sda = sda_oe ? sda_o : 1'bz;
+    
     // Instantiate ADC module (I2C to PmodAD2 on JB)
     pmod_ad2 u_adc (
         .clk(clk_50mhz),
         .rst_n(rst_n_sync),
         .scl(scl),
-        .sda(sda),
+        .sda_i(sda),
+        .sda_o(sda_o),
+        .sda_oe(sda_oe),
         .m_axis_tdata(adc_data),
         .m_axis_tvalid(adc_valid),
         .m_axis_tready(adc_ready),
